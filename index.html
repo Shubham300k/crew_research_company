@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Research Agent Crew — CrewAI + Cloudflare Workers AI</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #fafafa;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .subtitle { color: #666; font-size: 16px; margin-bottom: 32px; }
+        .badge {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+        .meta { 
+            background: #fff; 
+            border: 1px solid #e0e0e0; 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .meta-item strong { display: block; color: #333; margin-bottom: 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .meta-item span { color: #555; }
+        h2 { font-size: 20px; font-weight: 600; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #1a1a1a; }
+        .problem-box {
+            background: #fff;
+            border-left: 4px solid #1a1a1a;
+            padding: 20px;
+            margin-bottom: 24px;
+            border-radius: 0 8px 8px 0;
+        }
+        .problem-box h3 { font-size: 16px; margin-bottom: 8px; }
+        .agent-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .agent-card h3 { font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; }
+        .agent-icon { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 28px; 
+            height: 28px; 
+            background: #1a1a1a; 
+            color: #fff; 
+            border-radius: 50%; 
+            font-size: 12px; 
+            font-weight: 700; 
+            margin-right: 10px; 
+        }
+        .agent-role { font-size: 13px; color: #666; margin-bottom: 8px; font-style: italic; }
+        .flow-diagram {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 24px;
+            margin: 24px 0;
+            text-align: center;
+        }
+        .flow-step {
+            display: inline-block;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            margin: 4px;
+        }
+        .flow-arrow {
+            display: inline-block;
+            color: #666;
+            font-size: 20px;
+            margin: 0 4px;
+            vertical-align: middle;
+        }
+        .screenshot-box {
+            background: #f0f0f0;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            color: #888;
+        }
+        .screenshot-box img { max-width: 100%; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .caption { font-size: 13px; color: #666; margin-top: 8px; font-style: italic; }
+        .code-block {
+            background: #1a1a1a;
+            color: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        .code-comment { color: #6a9955; }
+        .code-keyword { color: #569cd6; }
+        .code-string { color: #ce9178; }
+        .two-versions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .version-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .version-card h4 { font-size: 15px; margin-bottom: 8px; }
+        .version-card .pros { font-size: 13px; color: #555; }
+        .version-card .pros li { margin-bottom: 4px; }
+        .pivot-box {
+            background: #fffbeb;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        .pivot-box h3 { font-size: 16px; margin-bottom: 8px; color: #92400e; }
+        .pivot-box p { font-size: 14px; color: #78350f; }
+        footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #e0e0e0; font-size: 13px; color: #888; }
+        a { color: #1a1a1a; text-decoration: underline; }
+        @media (max-width: 600px) {
+            .meta-grid { grid-template-columns: 1fr; }
+            .two-versions { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Company Research Agent Crew</h1>
+    <p class="subtitle">Multi-agent autonomous research system built with CrewAI and Cloudflare Workers AI</p>
+
+    <div style="margin-bottom: 24px;">
+        <span class="badge">CrewAI</span>
+        <span class="badge">Python</span>
+        <span class="badge">Cloudflare Workers AI</span>
+        <span class="badge">Serper.dev</span>
+        <span class="badge">Live Google Search</span>
+        <span class="badge">Agent Orchestration</span>
+    </div>
+
+    <div class="meta">
+        <div class="meta-grid">
+            <div class="meta-item">
+                <strong>Built</strong>
+                <span>April 2026</span>
+            </div>
+            <div class="meta-item">
+                <strong>Architecture</strong>
+                <span>3-agent sequential pipeline with context passing</span>
+            </div>
+            <div class="meta-item">
+                <strong>LLM</strong>
+                <span>Cloudflare Workers AI — Llama 3.1 8B (edge inference, free tier)</span>
+            </div>
+            <div class="meta-item">
+                <strong>Search</strong>
+                <span>Serper.dev API — live Google search, real-time data</span>
+            </div>
+        </div>
+    </div>
+
+    <h2>The Problem</h2>
+    <div class="problem-box">
+        <h3>Personalized outreach requires deep research. Deep research takes hours per company.</h3>
+        <p>For a lead generation business, every cold email needs to reference specific pain points, tech stack, and business challenges. Doing this manually means either generic emails (ignored) or hours of research per prospect (unscalable). The goal: automate the research, analysis, and writing pipeline so a single input produces a ready-to-send, personalized email in under 60 seconds.</p>
+    </div>
+
+    <h2>The Solution: A 3-Agent Crew</h2>
+    <p>Instead of one monolithic script, this system uses <strong>agent orchestration</strong> — three specialized AI agents that pass context sequentially, each doing one job exceptionally well. This is the same architecture powering enterprise AI systems, scaled down to a lightweight Python implementation.</p>
+
+    <div class="flow-diagram">
+        <span class="flow-step">Researcher</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">Analyst</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step">Writer</span>
+        <br><br>
+        <span style="font-size: 12px; color: #666;">Live Search → Pain Point ID → Personalized Email</span>
+    </div>
+
+    <div class="agent-card">
+        <h3><span class="agent-icon">1</span>Researcher Agent</h3>
+        <p class="agent-role">"Gather comprehensive information about any company via live Google search"</p>
+        <p><strong>What it does:</strong> Takes a company name, calls Serper.dev to search Google in real-time, then uses Cloudflare's Llama 3.1 8B to summarize the search results into a structured company profile.</p>
+        <p><strong>Output:</strong> 300-word summary covering what the company does, their industry, target customers, and business challenges.</p>
+        <p><strong>Tool:</strong> <code>search_company_info</code> — custom Python function wrapping Serper API + LLM summarization.</p>
+    </div>
+
+    <div class="agent-card">
+        <h3><span class="agent-icon">2</span>Analyst Agent</h3>
+        <p class="agent-role">"Identify tech stack, pain points, and AI automation opportunities"</p>
+        <p><strong>What it does:</strong> Reads the Researcher's output, then uses the LLM to infer likely technology stack, operational inefficiencies, and where AI automation could deliver the most value.</p>
+        <p><strong>Output:</strong> Structured analysis with specific pain points and automation ideas.</p>
+        <p><strong>Tool:</strong> <code>analyze_tech_stack</code> — custom function that prompts the LLM for business analysis.</p>
+    </div>
+
+    <div class="agent-card">
+        <h3><span class="agent-icon">3</span>Writer Agent</h3>
+        <p class="agent-role">"Write compelling, personalized cold emails that reference real pain points"</p>
+        <p><strong>What it does:</strong> Receives both the Researcher's company summary and the Analyst's pain points, then crafts a cold email under 150 words that references specific, researched details.</p>
+        <p><strong>Output:</strong> Ready-to-send outreach email with personalized hooks.</p>
+        <p><strong>No tool needed:</strong> Pure LLM generation with rich context from previous agents.</p>
+    </div>
+
+    <h2>Challenges Faced & How They Were Solved</h2>
+    <p>Building a multi-agent system from scratch meant navigating real engineering trade-offs. Here are two key challenges and how they were resolved.</p>
+
+    <h3 style="font-size: 16px; margin: 24px 0 12px;">1. Framework Complexity vs. Shipping Fast</h3>
+    <p>When the full CrewAI version hit framework complexity (context window limits, JSON parsing loops), the approach wasn't to get stuck — it was to build a lightweight fallback that does the exact same thing with zero framework overhead.</p>
+
+    <div class="two-versions">
+        <div class="version-card">
+            <h4>Version A: CrewAI Architecture</h4>
+            <ul class="pros">
+                <li>Multi-agent orchestration with role-based delegation</li>
+                <li>Sequential task execution with automatic context passing</li>
+                <li>Extensible — add more agents, tools, or parallel processes</li>
+                <li>Demonstrates enterprise-grade agent framework literacy</li>
+            </ul>
+        </div>
+        <div class="version-card">
+            <h4>Version B: Lightweight Fallback</h4>
+            <ul class="pros">
+                <li>60 lines of pure Python — zero dependencies beyond <code>requests</code></li>
+                <li>Direct HTTP to Cloudflare API — no framework abstraction</li>
+                <li>Ships immediately when frameworks break</li>
+                <li>Demonstrates pragmatic problem-solving under constraints</li>
+            </ul>
+        </div>
+    </div>
+
+    <h3 style="font-size: 16px; margin: 24px 0 12px;">2. API Failure Mid-Build</h3>
+    <div class="pivot-box">
+        <h3>Problem: Gemini API rate-limited mid-build (0 requests remaining)</h3>
+        <p><strong>Solution:</strong> Pivoted to Cloudflare Workers AI. Llama 3.1 8B running at the edge, 10,000 neurons/day free tier, no rate limits. Same output quality, faster inference, zero cost.</p>
+        <p><strong>What this proves:</strong> Tool-agnostic problem solving. When one API fails, pivoting to another without losing momentum is the difference between someone who experiments with AI and someone who ships production systems with AI.</p>
+    </div>
+
+    <div class="screenshot-box">
+        <img src="assets/crew-output.png" alt="CrewAI terminal output">
+        <p class="caption">CrewAI execution — Researcher searches, Analyst evaluates, Writer composes</p>
+    </div>
+
+    <h2>Architecture Deep Dive (For Technical Reviewers)</h2>
+
+    <div class="code-block">
+<span class="code-comment"># Cloudflare Workers AI — OpenAI-compatible endpoint</span>
+CF_AI_URL = <span class="code-string">f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/v1"</span>
+
+<span class="code-comment"># CrewAI LLM configured to use Cloudflare instead of OpenAI</span>
+cf_llm = LLM(
+    model=<span class="code-string">"openai/@cf/meta/llama-3.1-8b-instruct"</span>,
+    api_key=CF_API_TOKEN,
+    base_url=CF_AI_URL,
+    temperature=<span class="code-string">0.1</span>
+)
+    </div>
+
+    <p><strong>Why Cloudflare Workers AI?</strong></p>
+    <ul style="margin-left: 20px; margin-bottom: 24px;">
+        <li><strong>Edge inference:</strong> Runs on Cloudflare's global edge network — sub-100ms latency from Kathmandu</li>
+        <li><strong>Free tier:</strong> 10,000 neurons/day = ~500-1000 API calls, enough for development and demo</li>
+        <li><strong>OpenAI-compatible:</strong> Same API structure, drop-in replacement for GPT-4/Claude</li>
+        <li><strong>Privacy:</strong> Data never leaves Cloudflare's infrastructure</li>
+    </ul>
+
+    <h2>Live Search Integration</h2>
+    <p>Unlike static LLM knowledge (training data cutoff), this system uses <strong>Serper.dev</strong> to search Google in real-time. When you ask about "Stripe," it doesn't guess from 2023 training data — it reads Stripe's current homepage, recent news, and product updates.</p>
+
+    <div class="code-block">
+<span class="code-comment"># Serper.dev — Google Search API, 2,500 free queries</span>
+headers = {<span class="code-string">"X-API-KEY"</span>: SERPER_API_KEY}
+payload = {<span class="code-string">"q"</span>: <span class="code-string">"Stripe company what they do"</span>, <span class="code-string">"num"</span>: 5}
+
+response = requests.post(<span class="code-string">"https://google.serper.dev/search"</span>, ...)
+results = response.json()[<span class="code-string">"organic"</span>]  <span class="code-comment"># Live Google results</span>
+    </div>
+
+    <h2>Sample Output</h2>
+    <div class="screenshot-box">
+        <img src="assets/output-stripe.png" alt="Sample output for Stripe">
+        <p class="caption">Complete pipeline output for Stripe — from live search to ready-to-send email</p>
+    </div>
+
+    <h2>What This Project Taught Me</h2>
+    <ul style="margin-left: 20px; margin-bottom: 24px;">
+        <li><strong>Agent architecture:</strong> Decomposing complex workflows into specialized, cooperating agents is the core pattern of modern AI systems — and it works.</li>
+        <li><strong>API integration:</strong> Connecting Serper, Cloudflare, and internal tools requires handling authentication, rate limits, error cases, and data transformation.</li>
+        <li><strong>Prompt engineering at scale:</strong> Three different prompts (research, analysis, writing) each optimized for a specific output format and token budget.</li>
+        <li><strong>Resilience:</strong> When the primary LLM provider failed, pivoting to an alternative without rewriting the core logic kept the project moving.</li>
+        <li><strong>Communication:</strong> Technical work means nothing if stakeholders can't understand it. Documenting for non-technical audiences is as important as the code itself.</li>
+    </ul>
+
+    <h2>Real World Value</h2>
+    <p>This project mirrors the exact challenges businesses face when building AI agents that integrate with real business data: handling API failures gracefully, orchestrating multiple specialized agents, and explaining technical work to non-technical stakeholders. The CrewAI version shows the ability to work with frameworks and enterprise patterns. The lightweight fallback shows the ability to strip frameworks and still ship when constraints demand it. Both are necessary skills when managing multiple client accounts or internal workflows with different technical requirements and uptime expectations.</p>
+
+    <footer>
+        <p>Built by Shubham Piya • <a href="[GITHUB_REPO_LINK]" target="_blank">View on GitHub</a></p>
+    </footer>
+
+</body>
+</html>
